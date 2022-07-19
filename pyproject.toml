@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=54.2.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "UG100 Dataset"
+version = "1.0.0"
+authors = [
+  { name="Samuele Marro", email="marrosamuele@gmail.com" },
+]
+description = "Dataset containing adversarial results for seven approximate attacks (+ MIP) on MNIST and CIFAR10."
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/pypa/sampleproject"
+"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
