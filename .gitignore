@@ -1,0 +1,5 @@
+src/ug100/data/**
+src/__pycache__/**
+data/**
+dist/**
+src/ug100/__pycache__/**
