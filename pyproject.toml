@@ -1,14 +1,15 @@
 [build-system]
-requires = ["setuptools>=54.2.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
-name = "UG100 Dataset"
+name = "ug100"
 version = "1.0.0"
 authors = [
   { name="Samuele Marro", email="marrosamuele@gmail.com" },
 ]
 description = "Dataset containing adversarial results for seven approximate attacks (+ MIP) on MNIST and CIFAR10."
+keywords = ["dataset", "adversarial", "attack", "mip", "mixed-integer programming", "mnist", "cifar10"]
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.7"
@@ -17,7 +18,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+  "torch>=1.7.1",
+  "tqdm>=4.64.0"
+]
 
 [project.urls]
-"Homepage" = "https://github.com/pypa/sampleproject"
-"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+"Homepage" = "https://github.com/samuelemarro/ug100"
+"Bug Tracker" = "https://github.com/samuelemarro/ug100"
