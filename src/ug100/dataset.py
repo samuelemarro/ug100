@@ -1,9 +1,9 @@
+import abc
 import json
 import os
 from pathlib import Path
 import requests
-import shutil
-from typing import Callable, Dict, List, Tuple, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 from urllib.request import urlretrieve
 import zipfile
 
@@ -11,10 +11,8 @@ import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-
 ATTACKS = ['bim', 'brendel', 'carlini', 'deepfool', 'fast_gradient', 'pgd', 'uniform']
 URL_BASE = 'https://zenodo.org/record/6869110/files/'
-TIMEOUT = 15
 
 class TqdmUpTo(tqdm):
     def update_to(self, b=1, bsize=1, tsize=None):
@@ -27,8 +25,6 @@ def _download_file(url, path):
     print('Downloading dataset. If the download hangs, you can manually download it from', url, 'and save it to', Path(path).parent)
 
     with requests.get(url, allow_redirects=True, stream=True) as r:
-        content_length = r.headers.get("Content-Length")
-        content_length = None
         with TqdmUpTo(unit = 'B', unit_scale = True, unit_divisor = 1024, miniters = 1, desc = Path(path).name) as t:
             urlretrieve(url, filename = path, reporthook = t.update_to)
 
@@ -63,7 +59,28 @@ def _filter_attacks(data, attacks):
             for index, value in data.items()
         }
 
-class UG100Base(Dataset):
+class SparseDataset(Dataset, abc.ABC):
+    @abc.abstractmethod
+    def __len__(self):
+        pass
+
+    @abc.abstractmethod
+    def __getitem__(self, index):
+        pass
+
+    @abc.abstractmethod
+    def keys(self):
+        pass
+
+    @abc.abstractmethod
+    def values(self):
+        pass
+    
+    @abc.abstractmethod
+    def items(self):
+        pass
+
+class UG100Base(SparseDataset):
     """Base class for UG100 datasets."""
     def __init__(self, dataset : str, architecture : str, training_type : str, path : str, root : Union[str, Path], download : bool, url : str, extraction_path : Union[str, Path]):
         super().__init__()
@@ -107,12 +124,15 @@ class UG100Base(Dataset):
 
     def __getitem__(self, index):
         return self.data[index]
-    
+
     def keys(self):
         return self.data.keys()
-    
+
     def values(self):
         return self.data.values()
+    
+    def items(self):
+        return self.data.items()
 
 class UG100ApproximateAdversarial(UG100Base):
     def __init__(self,
@@ -150,7 +170,7 @@ class UG100ApproximateAdversarial(UG100Base):
 
         path = Path(root) / 'adversarials' / parameter_set / dataset / architecture / (training_type + '.pt')
         extraction_path = Path(root) / 'adversarials' / parameter_set / dataset
-        url = URL_BASE + f'adversarials_{parameter_set}_{dataset}'
+        url = URL_BASE + f'adversarials_{parameter_set}_{dataset}.zip'
         super().__init__(dataset, architecture, training_type, path, root, download, url, extraction_path)
 
         self.attacks = attacks
@@ -301,20 +321,30 @@ class UG100MIPTime(UG100Base):
 
 class IndexedDataset(Dataset):
     """Allows indexing of a sparse dataset in a dense manner."""
-    def __init__(self, base_dataset : UG100Base) -> None:
+    def __init__(self, base_dataset : SparseDataset) -> None:
+        """Initializes an IndexedDataset.
+
+        Args:
+            base_dataset (UG100Base): sparse source dataset.
+        """
         super().__init__()
         self.base_dataset = base_dataset
-        self.ordered_keys = sorted(self.base_dataset.data.keys())
+        self.ordered_keys = sorted(self.base_dataset.keys())
 
     def __len__(self):
-        return len(self.base_dataset.data)
+        return len(self.base_dataset)
 
     def __getitem__(self, index):
-        return super().__getitem__(self.ordered_keys[index])
+        return self.base_dataset[self.ordered_keys[index]]
 
 class MultiDataset(Dataset):
     """A dataset that returns the elements of multiple datasets."""
     def __init__(self, *datasets) -> None:
+        """Initializes a MultiDataset.
+
+        Raises:
+            ValueError: If datasets is an empty list.
+        """
         super().__init__()
 
         if len(datasets) == 0:
