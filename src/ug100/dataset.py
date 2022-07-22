@@ -40,6 +40,9 @@ def _extract(path, extraction_path):
         raise RuntimeError(f'"{path}" is corrupted. The download might have been possibly interrupted. Re-run the command to re-download.')
 
 def _check_attacks(attacks):
+    if isinstance(attacks, str):
+        return _check_attacks([attacks])
+
     for attack in attacks:
         if attack not in ATTACKS:
             raise ValueError(f'Unsupported attack "{attack}".')
@@ -80,44 +83,78 @@ class SparseDataset(Dataset, abc.ABC):
     def items(self):
         pass
 
+def _maybe_download_and_extract(path : str, url : str, root : Union[str, Path], extraction_path : Union[str, Path], download : bool):
+    path = Path(path)
+    root = Path(root)
+
+    if not path.exists():
+        cache_path = root / 'cache' / url.split('/')[-1]
+        if not cache_path.exists():
+            if download:
+                _download_file(url, cache_path)
+            else:
+                raise RuntimeError(f'Dataset file not found. Use download=True to download or download it manually from {url} and place it in {Path(cache_path).parent}.')
+
+        _extract(cache_path, extraction_path)
+        os.remove(cache_path)
+
+def _load_single_file(path : str, url : str, root : Union[str, Path], extraction_path : Union[str, Path], download : bool):
+    path = Path(path)
+    root = Path(root)
+
+    _maybe_download_and_extract(path, url, root, extraction_path, download)
+
+    if path.suffix == '.json':
+        with open(str(path)) as f:
+            data = json.load(f)
+    elif path.suffix == '.pt':
+        data = torch.load(path)
+    else:
+        raise RuntimeError(f'Unknown file type "{path.suffix}" for {path}.')
+    
+    # Convert to integer keys
+    data = {int(k): v for k, v in data.items()}
+    return data
+
+def _load_adversarial_files(directory : str, attacks : Union[str, List[str]], url : str, root : Union[str, Path], extraction_path : Union[str, Path], download : bool):
+    directory = Path(directory)
+    root = Path(root)
+
+    if isinstance(attacks, str):
+        # Single attack
+        actual_path = directory / (attacks + '.pt')
+        return _load_single_file(actual_path, url, root, extraction_path, download)
+
+    _maybe_download_and_extract(directory, url, root, extraction_path, download)
+
+    all_datasets = {}
+    for attack in attacks:
+        all_datasets[attack] = torch.load(directory / (attack + '.pt'))
+
+    data = {}
+
+    for index in list(all_datasets.values())[0].keys():
+        data[int(index)] = {
+            attack: all_datasets[attack][index] for attack in attacks
+        }
+
+    return data
+
 class UG100Base(SparseDataset):
     """Base class for UG100 datasets."""
-    def __init__(self, dataset : str, architecture : str, training_type : str, path : str, root : Union[str, Path], download : bool, url : str, extraction_path : Union[str, Path]):
+    def __init__(self, dataset : str, architecture : str, training_type : str):
         super().__init__()
-        path = Path(path)
-        root = Path(root)
-        self.dataset = dataset
-        self.architecture = architecture
-        self.training_type = training_type
-        self.root = root
-
+        
         if dataset not in ['mnist', 'cifar10']:
             raise ValueError(f'Unsupported dataset "{dataset}".')
-   
+
         if architecture not in ['a', 'b', 'c']:
             raise ValueError(f'Unsupported architecture "{architecture}".')
 
-        if not path.exists():
-            cache_path = root / 'cache' / url.split('/')[-1]
-            if not cache_path.exists():
-                if download:
-                    _download_file(url, cache_path)
-                else:
-                    raise RuntimeError(f'Dataset file not found. Use download=True to download or download it manually from {url} and place it in {Path(cache_path).parent}.')
-
-            _extract(cache_path, extraction_path)
-            os.remove(cache_path)
-        
-        if path.suffix == '.json':
-            with open(str(path)) as f:
-                self.data = json.load(f)
-        elif path.suffix == '.pt':
-            self.data = torch.load(path)
-        else:
-            raise RuntimeError(f'Unknown file type "{path.suffix}" for {path}.')
-        
-        # Convert to integer keys
-        self.data = {int(k): v for k, v in self.data.items()}
+        self.dataset = dataset
+        self.architecture = architecture
+        self.training_type = training_type
+        self.data = None
 
     def __len__(self):
         return len(self.data)
@@ -165,20 +202,20 @@ class UG100ApproximateAdversarial(UG100Base):
             raise ValueError(f'Unsupported training type "{training_type}".')
         if training_type not in ['standard', 'adversarial', 'relu']:
             raise ValueError(f'Unsupported training type "{training_type}".')
-        attacks = list(attacks)
+        # Clone the list and validate
+        if isinstance(attacks, list):
+            attacks = list(attacks)
         _check_attacks(attacks)
 
-        path = Path(root) / 'adversarials' / parameter_set / dataset / architecture / (training_type + '.pt')
+        directory = Path(root) / 'adversarials' / parameter_set / dataset / architecture / training_type
         extraction_path = Path(root) / 'adversarials' / parameter_set / dataset
         url = URL_BASE + f'adversarials_{parameter_set}_{dataset}.zip'
-        super().__init__(dataset, architecture, training_type, path, root, download, url, extraction_path)
+        super().__init__(dataset, architecture, training_type)
+        self.data = _load_adversarial_files(directory, attacks, url, root, extraction_path, download)
 
         self.attacks = attacks
         self.parameter_set = parameter_set
         self.transform = transform
-
-        # Drop unused attacks
-        self.data = _filter_attacks(self.data, attacks)
 
     def __getitem__(self, index) -> Union[Dict[str, torch.Tensor], torch.Tensor]:
         element = super().__getitem__(index)
@@ -213,7 +250,8 @@ class UG100MIPAdversarial(UG100Base):
         path = Path(root) / 'adversarials' / 'mip' / dataset / architecture / (training_type + '.pt')
         extraction_path = Path(root) / 'adversarials' / 'mip' / dataset
         url = URL_BASE + f'adversarials_mip_{dataset}.zip'
-        super().__init__(dataset, architecture, training_type, path, root, download, url, extraction_path)
+        super().__init__(dataset, architecture, training_type)
+        self.data = _load_single_file(path, url, root, extraction_path, download)
 
         self.transform = transform
 
@@ -253,18 +291,21 @@ class UG100ApproximateDistance(UG100Base):
             raise ValueError(f'Unsupported training type "{training_type}".')
         if training_type not in ['standard', 'adversarial', 'relu']:
             raise ValueError(f'Unsupported training type "{training_type}".')
-        attacks = list(attacks)
+        # Clone the list and validate
+        if isinstance(attacks, list):
+            attacks = list(attacks)
         _check_attacks(attacks)
+        super().__init__(dataset, architecture, training_type)
 
-        path = Path(root) / 'distances' / parameter_set / dataset / architecture / (training_type + '.pt')
+        path = Path(root) / 'distances' / parameter_set / dataset / architecture / (training_type + '.json')
         extraction_path = Path(root) / 'distances'
         url = URL_BASE + 'distances.zip'
-        super().__init__(dataset, architecture, training_type, path, root, download, url, extraction_path)
+        raw_data = _load_single_file(path, url, root, extraction_path, download)
+        # Drop unused attacks
+        self.data = _filter_attacks(raw_data, attacks)
 
         self.parameter_set = parameter_set
 
-        # Drop unused attacks
-        self.data = _filter_attacks(self.data, attacks)
 
     def __getitem__(self, index) -> Dict[str, float]:
         return super().__getitem__(index)
@@ -286,10 +327,12 @@ class UG100MIPBounds(UG100Base):
             root (Union[str, Path], optional): root of the data folder. Defaults to './data/ug100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
         """
+        super().__init__(dataset, architecture, training_type)
+
         path = Path(root) / 'distances' / 'mip' / dataset / architecture / (training_type + '.json')
         extraction_path = Path(root) / 'distances'
         url = URL_BASE + 'distances.zip'
-        super().__init__(dataset, architecture, training_type, path, root, download, url, extraction_path)
+        self.data = _load_single_file(path, url, root, extraction_path, download)
 
     def __getitem__(self, index) -> float:
         return super().__getitem__(index)
@@ -311,10 +354,12 @@ class UG100MIPTime(UG100Base):
             root (Union[str, Path], optional): root of the data folder. Defaults to './data/ug100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
         """
+        super().__init__(dataset, architecture, training_type)
+
         path = Path(root) / 'mip_times' / dataset / architecture / (training_type + '.json')
         extraction_path = Path(root) / 'mip_times'
         url = URL_BASE + 'mip_times.zip'
-        super().__init__(dataset, architecture, training_type, path, root, download, url, extraction_path)
+        self.data = _load_single_file(path, url, root, extraction_path, download)
 
     def __getitem__(self, index) -> float:
         return super().__getitem__(index)
