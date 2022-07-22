@@ -178,7 +178,7 @@ class UG100ApproximateAdversarial(UG100Base):
             training_type : str = 'standard',
             parameter_set : str = 'strong',
             attacks : List[str] = ATTACKS,
-            root : Union[str, Path] = './data/ug100',
+            root : Union[str, Path] = './data/UG100',
             download : bool = True,
             transform : Optional[Callable] = None
         ) -> None:
@@ -194,7 +194,7 @@ class UG100ApproximateAdversarial(UG100Base):
             parameter_set: (str, optional): parameter set of the attacks. Options: ['strong', 'balanced']. Defaults to 'strong'.
             attacks : (Union[str, List[str]], optional): list of chosen attacks.
                 Valid attacks: ['bim', 'brendel', 'carlini', 'deepfool' 'fast_gradient', 'pgd', 'uniform']. Defaults to all of them.
-            root (Union[str, Path], optional): root of the data folder. Defaults to './data/ug100'.
+            root (Union[str, Path], optional): root of the data folder. Defaults to './data/UG100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
             transform (Optional[Callable], optional): transformation to be applied to adversarial examples. Defaults to None.
         """
@@ -233,7 +233,7 @@ class UG100MIPAdversarial(UG100Base):
             dataset : str = 'mnist',
             architecture : str = 'a',
             training_type : str = 'standard',
-            root : Union[str, Path] = './data/ug100',
+            root : Union[str, Path] = './data/UG100',
             download : bool = True,
             transform : Optional[Callable] = None
         ) -> None:
@@ -243,7 +243,7 @@ class UG100MIPAdversarial(UG100Base):
             dataset (str, optional): target dataset. Options: ['mnist', 'cifar10']. Defaults to 'mnist'.
             architecture (str, optional): target architecture. Options: ['a', 'b', 'c']. Defaults to 'a'.
             training_type (str, optional): target training type. Options: ['standard', 'adversarial', 'relu']. Defaults to 'standard'.
-            root (Union[str, Path], optional): root of the data folder. Defaults to './data/ug100'.
+            root (Union[str, Path], optional): root of the data folder. Defaults to './data/UG100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
             transform (Optional[Callable], optional): transformation to be applied to adversarial examples. Defaults to None.
         """
@@ -269,7 +269,7 @@ class UG100ApproximateDistance(UG100Base):
             training_type : str = 'standard',
             parameter_set : str = 'strong',
             attacks : Union[str, List[str]] = ATTACKS,
-            root : Union[str, Path] = './data/ug100',
+            root : Union[str, Path] = './data/UG100',
             download : bool = True
         ) -> None:
         """Loads a dataset containing the approximate adversarial examples.
@@ -284,7 +284,7 @@ class UG100ApproximateDistance(UG100Base):
             parameter_set: (str, optional): parameter set of the attacks. Options: ['strong', 'balanced']. Defaults to 'strong'.
             attacks : (Union[str, List[str]], optional): list of chosen attacks.
                 Valid attacks: ['bim', 'brendel', 'carlini', 'deepfool' 'fast_gradient', 'pgd', 'uniform']. Defaults to all of them.
-            root (Union[str, Path], optional): root of the data folder. Defaults to './data/ug100'.
+            root (Union[str, Path], optional): root of the data folder. Defaults to './data/UG100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
         """
         if parameter_set not in ['balanced', 'strong']:
@@ -315,7 +315,7 @@ class UG100MIPBounds(UG100Base):
             dataset : str = 'mnist',
             architecture : str = 'a',
             training_type : str = 'standard',
-            root : Union[str, Path] = './data/ug100',
+            root : Union[str, Path] = './data/UG100',
             download : bool = True
         ) -> None:
         """Loads a dataset containing the MIP convergence bounds.
@@ -324,7 +324,7 @@ class UG100MIPBounds(UG100Base):
             dataset (str, optional): target dataset. Options: ['mnist', 'cifar10']. Defaults to 'mnist'.
             architecture (str, optional): target architecture. Options: ['a', 'b', 'c']. Defaults to 'a'.
             training_type (str, optional): target training type. Options: ['standard', 'adversarial', 'relu']. Defaults to 'standard'.
-            root (Union[str, Path], optional): root of the data folder. Defaults to './data/ug100'.
+            root (Union[str, Path], optional): root of the data folder. Defaults to './data/UG100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
         """
         super().__init__(dataset, architecture, training_type)
@@ -342,7 +342,7 @@ class UG100MIPTime(UG100Base):
             dataset : str = 'mnist',
             architecture : str = 'a',
             training_type : str = 'standard',
-            root : Union[str, Path] = './data/ug100',
+            root : Union[str, Path] = './data/UG100',
             download : bool = True
         ) -> None:
         """Loads a dataset containing the MIP convergence times.
@@ -351,7 +351,7 @@ class UG100MIPTime(UG100Base):
             dataset (str, optional): target dataset. Options: ['mnist', 'cifar10']. Defaults to 'mnist'.
             architecture (str, optional): target architecture. Options: ['a', 'b', 'c']. Defaults to 'a'.
             training_type (str, optional): target training type. Options: ['standard', 'adversarial', 'relu']. Defaults to 'standard'.
-            root (Union[str, Path], optional): root of the data folder. Defaults to './data/ug100'.
+            root (Union[str, Path], optional): root of the data folder. Defaults to './data/UG100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
         """
         super().__init__(dataset, architecture, training_type)
