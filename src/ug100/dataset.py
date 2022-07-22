@@ -22,7 +22,7 @@ class TqdmUpTo(tqdm):
 
 def _download_file(url, path):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    print('Downloading dataset. If the download hangs, you can manually download it from', url, 'and save it to', Path(path).parent)
+    print('Downloading dataset. If the download doesn\'t work, you can manually download it from', url, 'and save it to', Path(path).parent)
 
     with requests.get(url, allow_redirects=True, stream=True) as r:
         with TqdmUpTo(unit = 'B', unit_scale = True, unit_divisor = 1024, miniters = 1, desc = Path(path).name) as t:
@@ -247,6 +247,9 @@ class UG100MIPAdversarial(UG100Base):
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
             transform (Optional[Callable], optional): transformation to be applied to adversarial examples. Defaults to None.
         """
+        if training_type not in ['standard', 'adversarial', 'relu']:
+            raise ValueError(f'Unsupported training type "{training_type}".')
+    
         path = Path(root) / 'adversarials' / 'mip' / dataset / architecture / (training_type + '.pt')
         extraction_path = Path(root) / 'adversarials' / 'mip' / dataset
         url = URL_BASE + f'adversarials_mip_{dataset}.zip'
@@ -291,6 +294,7 @@ class UG100ApproximateDistance(UG100Base):
             raise ValueError(f'Unsupported training type "{training_type}".')
         if training_type not in ['standard', 'adversarial', 'relu']:
             raise ValueError(f'Unsupported training type "{training_type}".')
+
         # Clone the list and validate
         if isinstance(attacks, list):
             attacks = list(attacks)
@@ -327,6 +331,9 @@ class UG100MIPBounds(UG100Base):
             root (Union[str, Path], optional): root of the data folder. Defaults to './data/UG100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
         """
+        if training_type not in ['standard', 'adversarial', 'relu']:
+            raise ValueError(f'Unsupported training type "{training_type}".')
+    
         super().__init__(dataset, architecture, training_type)
 
         path = Path(root) / 'distances' / 'mip' / dataset / architecture / (training_type + '.json')
@@ -354,6 +361,9 @@ class UG100MIPTime(UG100Base):
             root (Union[str, Path], optional): root of the data folder. Defaults to './data/UG100'.
             download (bool, optional): whether to download the dataset, if not present. Defaults to True.
         """
+        if training_type not in ['standard', 'adversarial', 'relu']:
+            raise ValueError(f'Unsupported training type "{training_type}".')
+    
         super().__init__(dataset, architecture, training_type)
 
         path = Path(root) / 'mip_times' / dataset / architecture / (training_type + '.json')
@@ -383,7 +393,11 @@ class IndexedDataset(Dataset):
         return self.base_dataset[self.ordered_keys[index]]
 
 class MultiDataset(Dataset):
-    """A dataset that returns the elements of multiple datasets."""
+    """
+    A dataset that returns the elements of multiple datasets.
+    Note: the length of a MultiDataset is the minimum of the lenghts of its sub-datasets.
+    Moreover, no check is performed on whether all sub-datasets can be accessed using all possible indices.
+    """
     def __init__(self, *datasets) -> None:
         """Initializes a MultiDataset.
 
@@ -396,6 +410,7 @@ class MultiDataset(Dataset):
             raise ValueError('At least one dataset required.')
 
         self.datasets = datasets
+        self.length = min(len(dataset) for dataset in datasets)
     
     def __len__(self):
         return len(self.datasets[0])
